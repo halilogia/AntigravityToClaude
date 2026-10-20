@@ -18,6 +18,10 @@ AntigravityToClaude kalıcı mühendislik hafızası ve oturumlar arası kararla
 - **Karar**: Windows komut satırlarında `sys.stdout.reconfigure(encoding='utf-8', errors='replace')` zorunlu kılınmıştır ve banner kutu çizimleri standart ASCII (`+---`, `|`) karakterlere uyarlanmıştır.
 - **Neden**: Windows varsayılan OEM kod sayfalarında Unicode kutu karakterleri `UnicodeEncodeError` patlamasına yol açar.
 
+### [ADR-04] Safe-Skip ve Idempotent Koruma (Yeni Sohbetleri Korumak)
+- **Karar**: Bir oturum `~/.claude/projects/<slug>/<sessionId>.jsonl` altında zaten mevcutsa, program varsayılan olarak bu oturumu atlar (`already_exists`).
+- **Neden**: Kullanıcı Antigravity'den aktarılan oturumu Claude Code'da açıp yeni mesajlar yazdığında, program 2. kez çalıştırılsa bile Claude Code'daki yeni konuşmalar asla ezilmez, silinmez ve eskiye dönmez. Yalnızca `--force` bayrağı ile üzerine yazılabilir.
+
 ---
 
 ## ⚠️ Tekrarlayan Tuzaklar (Gotchas)
