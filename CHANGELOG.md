@@ -5,6 +5,18 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) ve [Semantic Ver
 
 ---
 
+## [1.2.0] - 2026-10-21
+
+### Added
+- **Claude Code 2.1 Doğal DAG Mimarisi**: `tool_use` (assistant) ve `tool_result` (user) düğüm çiftleri entegre edildi. `run_command` -> `Bash`, `read_file` -> `View`, `write_file` -> `Write`, `edit_file` -> `Edit` eşleşmeleri kodlandı.
+- **`ai-title` Düğüm Entegrasyonu**: Claude Code TUI pencere başlığı ve oturum seçicisi için `.jsonl` başına resmi `ai-title` düğümleri eklendi.
+- **SQLite & Laptop Oturum Senkronizasyonu**: `conversation_summaries.db` üzerinden orijinal başlıklar, gerçek tarihler ve laptop çalışma alanları içe aktarıldı; `TITLE_OVERRIDES` tablosu bağlandı.
+
+### Fixed
+- **Sistem İzin Dökümü & XML Sızıntısı Giderildi**: `Your current permission grants`, `Created At...`, `<USER_SETTINGS_CHANGE>`, terminal durum logları ve araç onay mesajları filtrelenerek sohbet metninden tamamen temizlendi.
+- **Düşünce Zinciri (Thinking) İzolasyonu**: Ham metin blokları yerine yerel `thinking` blokları kullanılarak TUI arayüzünün temiz ve katlı kalması sağlandı.
+- **Boşluklu Dizin Yolu Çözümleme**: `detect_project_dir` fonksiyonunda boşluk içeren Windows kullanıcı yolları (`Halil Emre`) düzeltildi.
+
 ## [1.1.0] - 2026-10-21
 
 ### Fixed
