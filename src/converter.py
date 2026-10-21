@@ -209,9 +209,22 @@ def convert_conversation(
         for node in claude_nodes:
             f.write(json.dumps(node, ensure_ascii=False) + '\n')
 
+    # Also mirror to Desktop store so claude opened from Desktop sees it immediately
+    desktop_path = os.path.expanduser(os.path.join("~", "Desktop"))
+    desktop_slug = slugify_project_path(desktop_path)
+    desktop_store_dir = os.path.join(claude_dir, "projects", desktop_slug)
+    os.makedirs(desktop_store_dir, exist_ok=True)
+    desktop_jsonl = os.path.join(desktop_store_dir, f"{session_id}.jsonl")
+    if target_jsonl != desktop_jsonl:
+        try:
+            import shutil
+            shutil.copy2(target_jsonl, desktop_jsonl)
+        except Exception:
+            pass
+
     # Register in history.jsonl
     history_file = os.path.join(claude_dir, "history.jsonl")
-    existing_sessions = set()
+    existing_entries = set()
     if os.path.exists(history_file):
         try:
             with open(history_file, 'r', encoding='utf-8', errors='ignore') as f:
@@ -221,24 +234,38 @@ def convert_conversation(
                         continue
                     try:
                         h = json.loads(line)
-                        if "sessionId" in h:
-                            existing_sessions.add(h["sessionId"])
+                        if "sessionId" in h and "project" in h:
+                            existing_entries.add((h["sessionId"], h["project"]))
                     except Exception:
                         continue
         except Exception:
             pass
 
     first_turn_ms = parse_iso_or_now(turns[0].get("timestamp")) if turns else int(time.time() * 1000)
-    if session_id not in existing_sessions:
-        history_entry = {
-            "display": f"{display_title} (Antigravity)",
-            "pastedContents": {},
-            "timestamp": first_turn_ms,
-            "project": project_dir,
-            "sessionId": session_id
-        }
-        with open(history_file, 'a', encoding='utf-8') as f:
+    with open(history_file, 'a', encoding='utf-8') as f:
+        # Register for detected project
+        if (session_id, project_dir) not in existing_entries:
+            history_entry = {
+                "display": f"{display_title} (Antigravity)",
+                "pastedContents": {},
+                "timestamp": first_turn_ms,
+                "project": project_dir,
+                "sessionId": session_id
+            }
             f.write(json.dumps(history_entry, ensure_ascii=False) + '\n')
+            existing_entries.add((session_id, project_dir))
+
+        # Also register for Desktop working directory
+        if (session_id, desktop_path) not in existing_entries:
+            history_entry_desktop = {
+                "display": f"{display_title} (Antigravity)",
+                "pastedContents": {},
+                "timestamp": first_turn_ms,
+                "project": desktop_path,
+                "sessionId": session_id
+            }
+            f.write(json.dumps(history_entry_desktop, ensure_ascii=False) + '\n')
+            existing_entries.add((session_id, desktop_path))
 
     return {
         "status": "converted",
