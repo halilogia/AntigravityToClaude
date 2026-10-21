@@ -39,6 +39,28 @@ def clean_prompt_text(raw_text: str) -> str:
     text = text.strip()
     return text
 
+def extract_smart_title(raw_text: str) -> str:
+    """Extracts a clean, human-friendly title from a raw prompt."""
+    cleaned = clean_prompt_text(raw_text)
+    if not cleaned:
+        return ""
+    # Strip markdown artifacts
+    t = re.sub(r'[*_`#~>]', ' ', cleaned)
+    # Strip list numbering e.g. 1) 2) or 1. 2.
+    t = re.sub(r'^\s*\d+[\.\)]\s*', '', t)
+    t = re.sub(r'\s+', ' ', t).strip()
+    # Find first meaningful sentence or clause
+    parts = re.split(r'[:;?!.]\s+', t)
+    chosen = parts[0] if parts else t
+    if len(chosen) < 15 and len(parts) > 1:
+        chosen = f"{parts[0]}: {parts[1]}"
+    if len(chosen) > 55:
+        cut = chosen[:55]
+        if ' ' in cut:
+            cut = cut.rsplit(' ', 1)[0]
+        chosen = cut + '...'
+    return chosen.strip()
+
 def detect_project_dir(transcript_path: str, default_fallback: str) -> str:
     """
     Analyzes tool calls, file paths, and environment hints in the transcript
@@ -140,9 +162,9 @@ def scan_conversations(brain_dir: Optional[str] = None) -> List[Dict[str, Any]]:
                             turn_count += 1
                             if not first_prompt:
                                 raw = d.get('content', '')
-                                clean = clean_prompt_text(raw)
-                                if clean:
-                                    first_prompt = clean.split('\n')[0][:120].strip()
+                                smart = extract_smart_title(raw)
+                                if smart:
+                                    first_prompt = smart
                                 if 'created_at' in d:
                                     first_time = d.get('created_at')
                     except Exception:
