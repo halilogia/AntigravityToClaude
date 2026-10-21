@@ -82,6 +82,12 @@ def detect_project_dir(transcript_path: str, default_fallback: str) -> str:
             m = re.match(r'([A-Za-z]:\\Users\\[^\\]+\\Desktop\\[^\\]+)', p, re.IGNORECASE)
         if not m:
             m = re.match(r'([A-Za-z]:\\Users\\[^\\]+\\Documents\\[^\\]+)', p, re.IGNORECASE)
+        if not m:
+            # Match arbitrary drive project roots e.g. D:\dev\repo or C:\projects\repo
+            m = re.match(r'([A-Za-z]:\\[^\\]+\\[^\\]+)', p, re.IGNORECASE)
+        if not m:
+            # Match macOS / Linux user directories
+            m = re.match(r'((?:/Users|/home)/[^/]+/[^/]+)', p)
         
         if m:
             root = m.group(1).rstrip('\\')
