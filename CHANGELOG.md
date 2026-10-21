@@ -5,6 +5,11 @@ Format [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) ve [Semantic Ver
 
 ---
 
+## [1.1.0] - 2026-10-21
+
+### Fixed
+- **Claude Code 2.1+ Resume Uyumluluğu**: Dönüştürülen `.jsonl` dosyalarına `sessionId`, `cwd`, `version` ("2.1.306"), `isSidechain` ve `queue-operation` kayıtları eklenerek Claude Code'un `claude --resume <id>` komutuyla oturumları %100 sorunsuz geri yüklemesi sağlandı.
+
 ## [1.0.0] - 2026-10-20
 
 ### Added

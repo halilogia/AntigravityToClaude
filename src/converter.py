@@ -118,28 +118,56 @@ def convert_conversation(
 
     # Build Claude Code DAG nodes
     claude_nodes: List[Dict[str, Any]] = []
+
+    # Queue operations for Claude Code 2.1+ session engine
+    first_prompt_text = turns[0]["user_text"] if turns else "Start"
+    claude_nodes.append({
+        "type": "queue-operation",
+        "operation": "enqueue",
+        "timestamp": datetime.fromtimestamp(parse_iso_or_now(turns[0].get("timestamp")) / 1000).isoformat() + "Z",
+        "sessionId": session_id,
+        "content": first_prompt_text
+    })
+    claude_nodes.append({
+        "type": "queue-operation",
+        "operation": "dequeue",
+        "timestamp": datetime.fromtimestamp((parse_iso_or_now(turns[0].get("timestamp")) + 1) / 1000).isoformat() + "Z",
+        "sessionId": session_id
+    })
+
     parent_uuid: Optional[str] = None
     last_assistant_uuid: Optional[str] = None
 
     for turn_idx, turn in enumerate(turns):
         turn_ms = parse_iso_or_now(turn.get("timestamp"))
+        iso_ts = datetime.fromtimestamp(turn_ms / 1000).isoformat() + "Z"
 
         # 1. User Message
         user_uuid = str(uuid.uuid4())
         user_node = {
             "parentUuid": parent_uuid,
-            "uuid": user_uuid,
+            "isSidechain": False,
+            "promptId": str(uuid.uuid4()),
             "type": "user",
             "message": {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": turn["user_text"]
-                    }
-                ]
+                "content": turn["user_text"]
             },
-            "timestamp": turn_ms
+            "uuid": user_uuid,
+            "timestamp": iso_ts,
+            "permissionMode": "default",
+            "promptSource": "user",
+            "turnOrigin": "user",
+            "turnPosition": {
+                "promptIndex": turn_idx,
+                "turnIndex": 1
+            },
+            "userType": "external",
+            "entrypoint": "cli",
+            "cwd": project_dir,
+            "sessionId": session_id,
+            "version": "2.1.306",
+            "gitBranch": "HEAD"
         }
         claude_nodes.append(user_node)
         parent_uuid = user_uuid
@@ -185,13 +213,20 @@ def convert_conversation(
 
         assistant_node = {
             "parentUuid": parent_uuid,
-            "uuid": assistant_uuid,
+            "isSidechain": False,
             "type": "assistant",
             "message": {
                 "role": "assistant",
                 "content": content_blocks
             },
-            "timestamp": turn_ms + 1000
+            "uuid": assistant_uuid,
+            "timestamp": iso_ts,
+            "userType": "external",
+            "entrypoint": "cli",
+            "cwd": project_dir,
+            "sessionId": session_id,
+            "version": "2.1.306",
+            "gitBranch": "HEAD"
         }
         claude_nodes.append(assistant_node)
         parent_uuid = assistant_uuid
@@ -201,7 +236,9 @@ def convert_conversation(
     if last_assistant_uuid:
         claude_nodes.append({
             "type": "last-prompt",
-            "leafUuid": last_assistant_uuid
+            "lastPrompt": turns[-1]["user_text"] if turns else "devam et",
+            "leafUuid": last_assistant_uuid,
+            "sessionId": session_id
         })
 
     # Write project session JSONL
