@@ -209,19 +209,6 @@ def convert_conversation(
         for node in claude_nodes:
             f.write(json.dumps(node, ensure_ascii=False) + '\n')
 
-    # Also mirror to Desktop store so claude opened from Desktop sees it immediately
-    desktop_path = os.path.expanduser(os.path.join("~", "Desktop"))
-    desktop_slug = slugify_project_path(desktop_path)
-    desktop_store_dir = os.path.join(claude_dir, "projects", desktop_slug)
-    os.makedirs(desktop_store_dir, exist_ok=True)
-    desktop_jsonl = os.path.join(desktop_store_dir, f"{session_id}.jsonl")
-    if target_jsonl != desktop_jsonl:
-        try:
-            import shutil
-            shutil.copy2(target_jsonl, desktop_jsonl)
-        except Exception:
-            pass
-
     # Register in history.jsonl
     history_file = os.path.join(claude_dir, "history.jsonl")
     existing_entries = set()
@@ -254,18 +241,6 @@ def convert_conversation(
             }
             f.write(json.dumps(history_entry, ensure_ascii=False) + '\n')
             existing_entries.add((session_id, project_dir))
-
-        # Also register for Desktop working directory
-        if (session_id, desktop_path) not in existing_entries:
-            history_entry_desktop = {
-                "display": f"{display_title} (Antigravity)",
-                "pastedContents": {},
-                "timestamp": first_turn_ms,
-                "project": desktop_path,
-                "sessionId": session_id
-            }
-            f.write(json.dumps(history_entry_desktop, ensure_ascii=False) + '\n')
-            existing_entries.add((session_id, desktop_path))
 
     return {
         "status": "converted",

@@ -1,89 +1,145 @@
 import os
 import math
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
-def create_fusion_icon(out_path: str):
-    size = 512  # Render high-res first, then downsample for ultra-smooth anti-aliasing
+def render_fusion_icon(out_ico: str, out_png: str):
+    size = 512
     img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
 
-    # 1. Rounded App Squircle Background
-    # Dark cosmic slate with glowing cyan border
-    corner_radius = 110
+    # 1. Base App Squircle: Modern deep obsidian / cosmic glass
     draw.rounded_rectangle(
         [16, 16, size - 16, size - 16],
-        radius=corner_radius,
-        fill=(15, 23, 42, 255),       # #0f172a
-        outline=(56, 189, 248, 255),   # #38bdf8 cyan border
+        radius=110,
+        fill=(15, 23, 42, 255),       # #0f172a Deep Slate
+        outline=(56, 189, 248, 240),  # #38bdf8 Glowing Cyan Border
         width=10
     )
 
-    # Subtle inner gradient / glow
-    inner_glow = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-    glow_draw = ImageDraw.Draw(inner_glow)
-    glow_draw.ellipse([80, 80, 432, 432], fill=(6, 182, 212, 35))
-    glow_draw.ellipse([140, 140, 372, 372], fill=(217, 119, 6, 45))
-    img = Image.alpha_composite(img, inner_glow)
+    # Ambient glows
+    glow = Image.new('RGBA', (size, size), (0, 0, 0, 0))
+    gdraw = ImageDraw.Draw(glow)
+    gdraw.ellipse([50, 60, 260, 450], fill=(66, 133, 244, 45))   # Google blue glow left
+    gdraw.ellipse([260, 60, 460, 450], fill=(217, 119, 6, 45))   # Claude terracotta glow right
+    img = Image.alpha_composite(img, glow)
     draw = ImageDraw.Draw(img)
 
-    # 2. Left Element: Antigravity Cosmic Orbital Rings
-    center_l = (180, 256)
-    draw.ellipse([center_l[0] - 110, center_l[1] - 110, center_l[0] + 110, center_l[1] + 110], outline=(56, 189, 248, 220), width=12)
-    draw.ellipse([center_l[0] - 80, center_l[1] - 80, center_l[0] + 80, center_l[1] + 80], outline=(14, 165, 233, 180), width=8)
-    # Glowing nucleus core
-    draw.ellipse([center_l[0] - 35, center_l[1] - 35, center_l[0] + 35, center_l[1] + 35], fill=(56, 189, 248, 255))
-    draw.ellipse([center_l[0] - 18, center_l[1] - 18, center_l[0] + 18, center_l[1] + 18], fill=(255, 255, 255, 255))
+    # 2. LEFT SIDE: Antigravity Authentic Logo (White squircle + Google 'A' arch)
+    cx, cy = 152, 256
+    box_r = 82
+    draw.rounded_rectangle(
+        [cx - box_r, cy - box_r, cx + box_r, cy + box_r],
+        radius=40,
+        fill=(255, 255, 255, 255),
+        outline=(226, 232, 240, 255),
+        width=5
+    )
 
-    # 3. Right Element: Claude Terracotta Asterisk / Star Emblem
-    center_r = (332, 256)
-    # Claude terracotta 8-pointed warm star/flower
+    # Antigravity 'A' parameters
+    # Top arch peak at (cx, cy - 50)
+    # Left foot at (cx - 46, cy + 48)
+    # Right foot at (cx + 46, cy + 48)
+    stroke_w = 22
+
+    def quad_bezier(p0, p1, p2, t):
+        x = (1-t)**2 * p0[0] + 2*(1-t)*t * p1[0] + t**2 * p2[0]
+        y = (1-t)**2 * p0[1] + 2*(1-t)*t * p1[1] + t**2 * p2[1]
+        return (x, y)
+
+    # Left side: Green (#34A853) at foot -> Yellow (#FBBC05) -> Red (#EA4335) at peak
+    p_foot_l = (cx - 46, cy + 48)
+    p_ctrl_l = (cx - 36, cy - 42)
+    p_peak = (cx, cy - 50)
+    p_ctrl_r = (cx + 36, cy - 42)
+    p_foot_r = (cx + 46, cy + 48)
+
+    steps = 40
+    for i in range(steps):
+        t0 = i / steps
+        t1 = (i + 1) / steps
+        pt0 = quad_bezier(p_foot_l, p_ctrl_l, p_peak, t0)
+        pt1 = quad_bezier(p_foot_l, p_ctrl_l, p_peak, t1)
+        if t0 < 0.45:
+            c = (52, 168, 83)   # Google Green #34A853
+        elif t0 < 0.75:
+            c = (251, 188, 5)   # Google Yellow #FBBC05
+        else:
+            c = (234, 67, 53)   # Google Red #EA4335
+        draw.line([pt0, pt1], fill=(*c, 255), width=stroke_w)
+
+    # Right side: Red (#EA4335) at peak -> Blue (#4285F4) down to foot
+    for i in range(steps):
+        t0 = i / steps
+        t1 = (i + 1) / steps
+        pt0 = quad_bezier(p_peak, p_ctrl_r, p_foot_r, t0)
+        pt1 = quad_bezier(p_peak, p_ctrl_r, p_foot_r, t1)
+        if t0 < 0.25:
+            c = (234, 67, 53)   # Google Red #EA4335
+        elif t0 < 0.55:
+            c = (245, 158, 11)  # Warm transition / amber
+        else:
+            c = (66, 133, 244)  # Google Blue #4285F4
+        draw.line([pt0, pt1], fill=(*c, 255), width=stroke_w)
+
+    # Rounded end caps & apex cap
+    draw.ellipse([p_peak[0] - stroke_w//2, p_peak[1] - stroke_w//2, p_peak[0] + stroke_w//2, p_peak[1] + stroke_w//2], fill=(234, 67, 53, 255))
+    draw.ellipse([p_foot_l[0] - stroke_w//2, p_foot_l[1] - stroke_w//2, p_foot_l[0] + stroke_w//2, p_foot_l[1] + stroke_w//2], fill=(52, 168, 83, 255))
+    draw.ellipse([p_foot_r[0] - stroke_w//2, p_foot_r[1] - stroke_w//2, p_foot_r[0] + stroke_w//2, p_foot_r[1] + stroke_w//2], fill=(66, 133, 244, 255))
+
+    # Crossbar: Google Blue (#4285F4)
+    bar_y = cy + 10
+    bar_x1 = cx - 25
+    bar_x2 = cx + 25
+    draw.line([(bar_x1, bar_y), (bar_x2, bar_y)], fill=(66, 133, 244, 255), width=stroke_w - 2)
+    draw.ellipse([bar_x1 - (stroke_w-2)//2, bar_y - (stroke_w-2)//2, bar_x1 + (stroke_w-2)//2, bar_y + (stroke_w-2)//2], fill=(66, 133, 244, 255))
+    draw.ellipse([bar_x2 - (stroke_w-2)//2, bar_y - (stroke_w-2)//2, bar_x2 + (stroke_w-2)//2, bar_y + (stroke_w-2)//2], fill=(66, 133, 244, 255))
+
+    # 3. RIGHT SIDE: Claude Terracotta Asterisk / Star Emblem
+    center_r = (360, 256)
     terracotta = (217, 119, 6, 255)       # Claude warm amber/terracotta
     terracotta_bright = (249, 115, 22, 255) # Claude orange
 
     num_petals = 8
     for i in range(num_petals):
         angle = i * (2 * math.pi / num_petals)
-        px = center_r[0] + math.cos(angle) * 75
-        py = center_r[1] + math.sin(angle) * 75
+        px = center_r[0] + math.cos(angle) * 78
+        py = center_r[1] + math.sin(angle) * 78
         draw.line([center_r, (px, py)], fill=terracotta_bright, width=22)
+        draw.ellipse([px - 11, py - 11, px + 11, py + 11], fill=terracotta_bright)
 
-    # Center core of Claude emblem
-    draw.ellipse([center_r[0] - 42, center_r[1] - 42, center_r[0] + 42, center_r[1] + 42], fill=terracotta)
+    draw.ellipse([center_r[0] - 44, center_r[1] - 44, center_r[0] + 44, center_r[1] + 44], fill=terracotta)
     draw.ellipse([center_r[0] - 22, center_r[1] - 22, center_r[0] + 22, center_r[1] + 22], fill=(254, 215, 170, 255))
 
-    # 4. Central Transfer Bridge: Glowing Fast-Forward / Arrow Bridge (Antigravity -> Claude)
+    # 4. Central Transfer Bridge: Glowing Chevron / Arrow Bridge
     arrow_color = (74, 222, 128, 255) # Emerald green
-    ax = 256
-    ay = 256
-    # Right-pointing double chevron
-    for offset_x in [-18, 18]:
+    ax, ay = 256, 256
+    for offset_x in [-14, 14]:
         points = [
-            (ax + offset_x - 14, ay - 32),
-            (ax + offset_x + 14, ay),
-            (ax + offset_x - 14, ay + 32)
+            (ax + offset_x - 12, ay - 28),
+            (ax + offset_x + 12, ay),
+            (ax + offset_x - 12, ay + 28)
         ]
-        draw.line([points[0], points[1]], fill=arrow_color, width=10)
-        draw.line([points[1], points[2]], fill=arrow_color, width=10)
+        draw.line([points[0], points[1]], fill=arrow_color, width=9)
+        draw.line([points[1], points[2]], fill=arrow_color, width=9)
 
-    # Downsample and save as multi-size Windows icon (.ico)
+    # Save PNG
+    img.save(out_png)
+
+    # Save multi-size ICO
     sizes = [(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)]
-    icon_images = []
-    for s in sizes:
-        icon_images.append(img.resize(s, Image.Resampling.LANCZOS))
-
+    icon_images = [img.resize(s, Image.Resampling.LANCZOS) for s in sizes]
     icon_images[0].save(
-        out_path,
+        out_ico,
         format='ICO',
         sizes=[(s[0], s[1]) for s in sizes],
         append_images=icon_images[1:]
     )
-    print(f"ICON CREATED: {out_path} ({os.path.getsize(out_path)} bytes)")
-
-    # Also save a high-res PNG preview
-    png_path = out_path.replace('.ico', '.png')
-    img.resize((256, 256), Image.Resampling.LANCZOS).save(png_path)
-    print(f"PNG PREVIEW CREATED: {png_path}")
+    print(f"ICON CREATED: {out_ico} ({os.path.getsize(out_ico)} bytes)")
+    print(f"PNG CREATED: {out_png}")
 
 if __name__ == '__main__':
-    ico_dest = r"C:\Users\Halil Emre\Desktop\GitHub\Public\AntigravityToClaude\icon.ico"
-    create_fusion_icon(ico_dest)
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    render_fusion_icon(
+        os.path.join(base_dir, "icon.ico"),
+        os.path.join(base_dir, "icon.png")
+    )
